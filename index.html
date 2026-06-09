@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전기음성도와 전자 분포 시뮬레이션</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 50%, #0d0d3b 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px 20px;
+            background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .header h1 {
+            font-size: 2em;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .header p { color: rgba(255,255,255,0.6); font-size: 0.95em; }
+
+        .molecule-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 25px 20px 15px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 12px 30px;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.05);
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-family: 'Malgun Gothic', sans-serif;
+        }
+        .tab-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #7b2ff7, #00d4ff);
+            border-color: transparent;
+            box-shadow: 0 0 20px rgba(123,47,247,0.5);
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+            padding: 20px 30px;
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+
+        .canvas-section {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 20px;
+            min-width: 0;
+        }
+        .canvas-section h2 {
+            text-align: center;
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            color: #00d4ff;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 15px;
+            background: radial-gradient(ellipse at center, #0d1b3e 0%, #050d1f 100%);
+            border: 1px solid rgba(0,212,255,0.2);
+            cursor: grab;
+        }
+        canvas:active { cursor: grabbing; }
+
+        .drag-hint {
+            text-align: center;
+            margin-top: 10px;
+            color: rgba(255,255,255,0.4);
+            font-size: 0.85em;
+        }
+
+        .info-section {
+            width: 340px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .info-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 18px;
+        }
+        .info-card h3 {
+            font-size: 1em;
+            color: #00d4ff;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0,212,255,0.3);
+        }
+
+        .atom-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .atom-box { border-radius: 12px; padding: 12px; text-align: center; }
+        .atom-box .symbol { font-size: 2em; font-weight: bold; display: block; }
+        .atom-box .name { font-size: 0.75em; opacity: 0.8; margin: 2px 0; }
+        .atom-box .en-value { font-size: 1.1em; font-weight: bold; margin-top: 5px; }
+        .atom-box .en-label { font-size: 0.7em; opacity: 0.7; }
+        .electronegativity-bar {
+            margin-top: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+        }
+        .electronegativity-fill { height: 100%; border-radius: 10px; transition: width 0.5s; }
+
+        .diff-box { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 12px; text-align: center; }
+        .diff-value { font-size: 1.8em; font-weight: bold; }
+        .diff-label { font-size: 0.8em; opacity: 0.7; margin-top: 3px; }
+        .bond-type-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .charge-display { display: flex; justify-content: space-around; align-items: center; padding: 10px 0; }
+        .charge-item { text-align: center; }
+        .charge-symbol { font-size: 1.6em; font-weight: bold; }
+        .charge-atom { font-size: 0.85em; opacity: 0.8; margin-top: 3px; }
+        .charge-arrow { font-size: 1.5em; color: #ffd700; }
+
+        .legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82em; }
+        .legend-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+
+        .control-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .ctrl-btn {
+            padding: 8px 18px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+            font-family: 'Malgun Gothic', sans-serif;
+        }
+        .ctrl-btn:hover { background: rgba(255,255,255,0.2); }
+        .ctrl-btn.active { background: rgba(0,212,255,0.2); border-color: #00d4ff; color: #00d4ff; }
+
+        .formula-display {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 10px 15px;
+            font-size: 0.85em;
+            line-height: 1.7;
+            color: rgba(255,255,255,0.85);
+        }
+        .formula-display span.highlight { color: #ffd700; font-weight: bold; }
+
+        @media (max-width: 1000px) {
+            .main-container { flex-direction: column; padding: 15px; }
+            .info-section { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>⚛️ 전기음성도와 전자 분포 시뮬레이션</h1>
+    <p>화학 결합에서 전자쌍이 어떻게 이동하는지 3D로 관찰해보세요</p>
+</div>
+
+<div class="molecule-tabs">
+    <button class="tab-btn active" onclick="selectMolecule('H2')">H₂ (수소)</button>
+    <button class="tab-btn" onclick="selectMolecule('HF')">HF (플루오린화 수소)</button>
+    <button class="tab-btn" onclick="selectMolecule('HCl')">HCl (염화 수소)</button>
+</div>
+
+<div class="main-container">
+    <div class="canvas-section">
+        <h2 id="canvas-title">H₂ 분자 — 무극성 공유 결합</h2>
+        <canvas id="molCanvas" width="720" height="500"></canvas>
+        <div class="drag-hint">🖱️ 마우스를 드래그하여 분자를 회전시켜 보세요</div>
+        <div class="control-row">
+            <button class="ctrl-btn active" id="btn-electrons" onclick="toggleElectrons()">⚡ 전자 흐름</button>
+            <button class="ctrl-btn active" id="btn-cloud"    onclick="toggleCloud()">☁️ 전자구름</button>
+            <button class="ctrl-btn active" id="btn-charge"   onclick="toggleCharge()">± 부분전하</button>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <div class="info-card">
+            <h3>🔬 구성 원자 정보</h3>
+            <div class="atom-info-grid" id="atom-info-grid"></div>
+        </div>
+        <div class="info-card">
+            <h3>⚡ 전기음성도 차이</h3>
+            <div id="en-diff-display"></div>
+        </div>
+        <div class="info-card">
+            <h3>± 부분 전하 분포</h3>
+            <div class="charge-display" id="charge-display"></div>
+        </div>
+        <div class="info-card">
+            <h3>📌 결합 특성 요약</h3>
+            <div class="formula-display" id="bond-summary"></div>
+        </div>
+        <div class="info-card">
+            <h3>🎨 색상 범례</h3>
+            <div class="legend-grid" id="legend-grid"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===================================================
+//  분자 데이터
+// ===================================================
+const molecules = {
+    H2: {
+        name: 'H₂', fullName: '수소 분자',
+        atoms: [
+            { symbol:'H', name:'수소',    en:2.2, color:'#ffffff', radius:34 },
+            { symbol:'H', name:'수소',    en:2.2, color:'#ffffff', radius:34 }
+        ],
+        bondType:'무극성 공유 결합', bondColor:'#4CAF50',
+        enDiff:0.0, cloudCenter:0,
+        partialCharge:{ left:'', right:'' },
+        description:'H₂는 두 수소 원자의 전기음성도가 동일(2.2)하여 전자쌍이 어느 쪽으로도 치우치지 않는 <span class="highlight">무극성 공유 결합</span>입니다. 부분 전하가 생기지 않습니다.'
+    },
+    HF: {
+        name:'HF', fullName:'플루오린화 수소',
+        atoms: [
+            { symbol:'H', name:'수소',    en:2.2, color:'#ffffff', radius:30 },
+            { symbol:'F', name:'플루오린',en:4.0, color:'#00ff88', radius:38 }
+        ],
+        bondType:'극성 공유 결합', bondColor:'#ff6b6b',
+        enDiff:1.8, cloudCenter:0.52,
+        partialCharge:{ left:'δ+', right:'δ−' },
+        description:'HF는 플루오린(F)의 전기음성도(4.0)가 수소(H, 2.2)보다 훨씬 크므로 공유 전자쌍이 F 쪽으로 강하게 끌립니다. H는 <span class="highlight">δ+</span>, F는 <span class="highlight">δ−</span> 부분 전하를 가집니다.'
+    },
+    HCl: {
+        name:'HCl', fullName:'염화 수소',
+        atoms: [
+            { symbol:'H',  name:'수소',en:2.2, color:'#ffffff', radius:30 },
+            { symbol:'Cl', name:'염소',en:3.2, color:'#7fff00', radius:42 }
+        ],
+        bondType:'극성 공유 결합', bondColor:'#ffd700',
+        enDiff:1.0, cloudCenter:0.30,
+        partialCharge:{ left:'δ+', right:'δ−' },
+        description:'HCl은 염소(Cl)의 전기음성도(3.2)가 수소(H, 2.2)보다 크므로 공유 전자쌍이 Cl 쪽으로 치우칩니다. HF보다 편차가 작아 <span class="highlight">약한 극성</span>을 가집니다.'
+    }
+};
+
+// ===================================================
+//  전역 상태
+// ===================================================
+let currentMol   = 'H2';
+let angle        = 0;
+let showElectrons = true;
+let showCloud    = true;
+let showCharge   = true;
+let electrons    = [];
+let time         = 0;
+let isDragging   = false;
+let lastMouseX   = 0;
+let dragVelocity = 0;
+
+const BOND_LENGTH = 118;
+
+const canvas = document.getElementById('molCanvas');
+const ctx    = canvas.getContext('2d');
+
+// ===================================================
+//  전자 파티클 초기화
+// ===================================================
+function initElectrons(mol) {
+    electrons = [];
+    for (let i = 0; i < 26; i++) {
+        electrons.push({
+            progress : Math.random(),
+            speed    : 0.0022 + Math.random() * 0.0028,
+            offsetY  : (Math.random() - 0.5) * 16,
+            size     : 2.8 + Math.random() * 2.4,
+            alpha    : 0.5  + Math.random() * 0.5,
+            wave     : Math.random() * Math.PI * 2
+        });
+    }
+}
+
+// ===================================================
+//  분자 선택
+// ===================================================
+function selectMolecule(key) {
+    currentMol = key;
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', ['H2','HF','HCl'][i] === key);
+    });
+    initElectrons(molecules[key]);
+    updateInfoPanel(key);
+    angle = 0; dragVelocity = 0;
+}
+
+// ===================================================
+//  정보 패널
+// ===================================================
+function updateInfoPanel(key) {
+    const mol = molecules[key];
+    document.getElementById('canvas-title').textContent =
+        `${mol.name} (${mol.fullName}) — ${mol.bondType}`;
+
+    /* 원자 카드 */
+    const grid = document.getElementById('atom-info-grid');
+    grid.innerHTML = '';
+    mol.atoms.forEach((atom, idx) => {
+        const fillPct   = (atom.en / 4.0 * 100).toFixed(0);
+        const bgColor   = idx===0 ? 'rgba(255,255,255,0.08)' : 'rgba(0,255,136,0.08)';
+        const bdColor   = idx===0 ? 'rgba(255,255,255,0.28)' : 'rgba(0,255,136,0.38)';
+        const fillColor = idx===0 ? '#aaaaff' : key==='HF' ? '#00ff88' : '#7fff00';
+        grid.innerHTML += `
+        <div class="atom-box" style="background:${bgColor};border:1px solid ${bdColor}">
+            <span class="symbol" style="color:${atom.color}">${atom.symbol}</span>
+            <div class="name">${atom.name}</div>
+            <div class="en-value" style="color:${fillColor}">${atom.en}</div>
+            <div class="en-label">전기음성도</div>
+            <div class="electronegativity-bar">
+                <div class="electronegativity-fill" style="width:${fillPct}%;background:${fillColor}"></div>
+            </div>
+        </div>`;
+    });
+
+    /* 전기음성도 차이 */
+    const diff = mol.enDiff;
+    let diffColor = '#4CAF50';
+    if (diff > 1.7) diffColor = '#ff6b6b';
+    else if (diff > 0.4) diffColor = '#ffd700';
+    document.getElementById('en-diff-display').innerHTML = `
+        <div class="diff-box">
+            <div class="diff-value" style="color:${diffColor}">${diff.toFixed(1)}</div>
+            <div class="diff-label">|${mol.atoms.map(a=>a.en).join(' − ')}| = ${diff.toFixed(1)}</div>
+            <div style="margin-top:8px">
+                <span class="bond-type-badge"
+                      style="background:${diffColor}22;border:1px solid ${diffColor};color:${diffColor}">
+                    ${mol.bondType}
+                </span>
+            </div>
+        </div>`;
+
+    /* 부분 전하 */
+    const chargeEl = document.getElementById('charge-display');
+    if (mol.enDiff === 0) {
+        chargeEl.innerHTML = `
+            <div style="text-align:center;width:100%;color:rgba(255,255,255,0.6)">
+                <div style="font-size:1.3em">⚖️</div>
+                <div style="margin-top:5px">전하 치우침 없음</div>
+                <div style="font-size:0.8em;margin-top:3px;color:#4CAF50">비극성 분자</div>
+            </div>`;
+    } else {
+        chargeEl.innerHTML = `
+            <div class="charge-item">
+                <div class="charge-symbol" style="color:#88aaff">${mol.partialCharge.left}</div>
+                <div class="charge-atom" style="color:${mol.atoms[0].color}">${mol.atoms[0].symbol}</div>
+                <div style="font-size:0.75em;color:rgba(255,255,255,0.5);margin-top:2px">전자 잃음</div>
+            </div>
+            <div class="charge-arrow">→</div>
+            <div class="charge-item">
+                <div class="charge-symbol" style="color:#ff5555">${mol.partialCharge.right}</div>
+                <div class="charge-atom" style="color:${mol.atoms[1].color}">${mol.atoms[1].symbol}</div>
+                <div style="font-size:0.75em;color:rgba(255,255,255,0.5);margin-top:2px">전자 얻음</div>
+            </div>`;
+    }
+
+    document.getElementById('bond-summary').innerHTML = mol.description;
+    document.getElementById('legend-grid').innerHTML = `
+        <div class="legend-item">
+            <div class="legend-dot" style="background:white"></div>수소(H) 원자핵</div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background:${mol.atoms[1].color}"></div>
+            ${mol.atoms[1].name}(${mol.atoms[1].symbol}) 원자핵</div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background:rgba(120,190,255,0.9)"></div>공유 전자쌍</div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background:rgba(255,200,50,0.75)"></div>전자구름 분포</div>`;
+}
+
+function toggleElectrons() {
+    showElectrons = !showElectrons;
+    document.getElementById('btn-electrons').classList.toggle('active', showElectrons);
+}
+function toggleCloud() {
+    showCloud = !showCloud;
+    document.getElementById('btn-cloud').classList.toggle('active', showCloud);
+}
+function toggleCharge() {
+    showCharge = !showCharge;
+    document.getElementById('btn-charge').classList.toggle('active', showCharge);
+}
+
+// ===================================================
+//  3D 투영
+// ===================================================
+function project3D(x, y, z, ay, ax) {
+    const cy2 = Math.cos(ay), sy2 = Math.sin(ay);
+    const cx2 = Math.cos(ax), sx2 = Math.sin(ax);
+    const rx  =  x*cy2 - z*sy2;
+    const rz  =  x*sy2 + z*cy2;
+    const ry  =  y*cx2 - rz*sx2;
+    const rz2 =  y*sx2 + rz*cx2;
+    const fov = 700;
+    const s   = fov / (fov + rz2 + 200);
+    return { x: rx*s, y: ry*s, z: rz2, scale: s };
+}
+
+// ===================================================
+//  렌더 루프
+// ===================================================
+function render() {
+    const mol = molecules[currentMol];
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W/2, cy = H/2;
+    time += 0.016;
+
+    if (!isDragging) { angle += dragVelocity; dragVelocity *= 0.93; }
+
+    const AX = 0.15;
+
+    /* 배경 격자 */
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for (let i=0; i<W; i+=45) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+    for (let j=0; j<H; j+=45) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(W,j); ctx.stroke(); }
+
+    /* 원자 3D 위치 */
+    const half = BOND_LENGTH / 2;
+    const raw  = [{ x:-half,y:0,z:0 }, { x:half,y:0,z:0 }];
+    const proj = raw.map(a => {
+        const p = project3D(a.x, a.y, a.z, angle, AX);
+        return { sx: cx+p.x, sy: cy+p.y, scale: p.scale, z: p.z };
+    });
+
+    const p0 = proj[0], p1 = proj[1];
+    const ddx = p1.sx - p0.sx, ddy = p1.sy - p0.sy;
+    const len = Math.sqrt(ddx*ddx + ddy*ddy);
+    const nx  = -ddy/len, ny = ddx/len;
+
+    /* ── 결합 중심점 : 항상 두 원자의 정확한 중간점 ── */
+    const bondMidX = (p0.sx + p1.sx) / 2;
+    const bondMidY = (p0.sy + p1.sy) / 2;
+
+    /* 전자구름 중심 (극성 분자는 전기음성도 큰 쪽으로 치우침) */
+    const cloudX = bondMidX + mol.cloudCenter * ddx * 0.52;
+    const cloudY = bondMidY + mol.cloudCenter * ddy * 0.52;
+
+    // ── 전자구름 ──
+    if (showCloud) {
+        const cw = 105 + mol.enDiff*10;
+        const ch = 46  + mol.enDiff*3;
+        for (let layer=7; layer>=0; layer--) {
+            const t     = layer/7;
+            const alpha = 0.025 + (1-t)*0.065;
+            const rw    = cw * (0.55 + t*0.45);
+            const grad  = ctx.createRadialGradient(cloudX,cloudY,0, cloudX,cloudY,rw);
+            if (mol.enDiff===0) {
+                grad.addColorStop(0,   `rgba(100,180,255,${alpha+0.04})`);
+                grad.addColorStop(0.5, `rgba(60,120,220,${alpha})`);
+                grad.addColorStop(1,   'rgba(60,120,220,0)');
+            } else {
+                grad.addColorStop(0,   `rgba(255,210,60,${alpha+0.05})`);
+                grad.addColorStop(0.4, `rgba(255,140,0,${alpha})`);
+                grad.addColorStop(1,   'rgba(255,80,0,0)');
+            }
+            ctx.save();
+            ctx.translate(cloudX, cloudY);
+            ctx.scale(1, ch/cw);
+            ctx.beginPath(); ctx.arc(0, 0, rw, 0, Math.PI*2);
+            ctx.fillStyle = grad; ctx.fill();
+            ctx.restore();
+        }
+        if (mol.enDiff > 0) {
+            ctx.font = 'bold 12px Malgun Gothic';
+            ctx.fillStyle = 'rgba(255,220,80,0.85)';
+            ctx.textAlign = 'center';
+            ctx.fillText('전자 밀도 높음', cloudX, cloudY - 62);
+        }
+    }
+
+    // ── 결합 봉 ──
+    /* 그림자 */
+    ctx.beginPath();
+    ctx.moveTo(p0.sx+5, p0.sy+5); ctx.lineTo(p1.sx+5, p1.sy+5);
+    ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=18; ctx.lineCap='round'; ctx.stroke();
+    /* 본체 */
+    const bGrad = ctx.createLinearGradient(p0.sx, p0.sy, p1.sx, p1.sy);
+    bGrad.addColorStop(0,   mol.atoms[0].color);
+    bGrad.addColorStop(0.5, mol.bondColor);
+    bGrad.addColorStop(1,   mol.atoms[1].color);
+    ctx.beginPath();
+    ctx.moveTo(p0.sx, p0.sy); ctx.lineTo(p1.sx, p1.sy);
+    ctx.strokeStyle=bGrad; ctx.lineWidth=13; ctx.stroke();
+    /* 하이라이트 */
+    ctx.beginPath();
+    ctx.moveTo(p0.sx+nx*4, p0.sy+ny*4); ctx.lineTo(p1.sx+nx*4, p1.sy+ny*4);
+    ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=4; ctx.stroke();
+
+    // ── 공유 전자쌍 : 두 원자의 정확한 중간에 배치 ──
+    const pulse = 1 + Math.sin(time*3) * 0.14;
+    const EP_SPREAD = 11;   // 두 전자점 사이 간격(px)
+    const EP_R      = 9;    // 전자점 반지름
+
+    [-1, 1].forEach(side => {
+        /* 결합선의 수직 방향으로 ±EP_SPREAD 만큼 이동 → 중심 정렬 */
+        const ex = bondMidX + nx * side * EP_SPREAD;
+        const ey = bondMidY + ny * side * EP_SPREAD;
+        const r  = EP_R * pulse;
+
+        /* 외부 글로우 */
+        const gg = ctx.createRadialGradient(ex, ey, 0, ex, ey, r*3.2);
+        gg.addColorStop(0,   'rgba(140,215,255,0.55)');
+        gg.addColorStop(0.5, 'rgba(80,160,255,0.25)');
+        gg.addColorStop(1,   'rgba(40,100,255,0)');
+        ctx.beginPath(); ctx.arc(ex, ey, r*3.2, 0, Math.PI*2);
+        ctx.fillStyle = gg; ctx.fill();
+
+        /* 중간 링 */
+        ctx.beginPath(); ctx.arc(ex, ey, r*1.7, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(160,220,255,0.3)';
+        ctx.lineWidth = 1.5; ctx.stroke();
+
+        /* 핵심 구 */
+        const eg = ctx.createRadialGradient(ex-r*0.32, ey-r*0.32, 0, ex, ey, r);
+        eg.addColorStop(0,   'rgba(230,245,255,1)');
+        eg.addColorStop(0.4, 'rgba(120,195,255,1)');
+        eg.addColorStop(0.8, 'rgba(50,110,220,0.95)');
+        eg.addColorStop(1,   'rgba(20,60,180,0.8)');
+        ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2);
+        ctx.fillStyle = eg; ctx.fill();
+
+        /* 테두리 */
+        ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2);
+        ctx.strokeStyle='rgba(200,235,255,0.7)';
+        ctx.lineWidth=1.5; ctx.stroke();
+
+        /* 반사광 */
+        const hg = ctx.createRadialGradient(ex-r*0.3, ey-r*0.35, 0, ex-r*0.2, ey-r*0.2, r*0.55);
+        hg.addColorStop(0, 'rgba(255,255,255,0.75)');
+        hg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2);
+        ctx.fillStyle = hg; ctx.fill();
+    });
+
+    /* 전자쌍 레이블 */
+    ctx.save();
+    ctx.font = 'bold 11px Malgun Gothic';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(160,220,255,0.85)';
+    ctx.fillText('공유 전자쌍', bondMidX, bondMidY + EP_R*pulse + 20);
+    ctx.restore();
+
+    // ── 전자 흐름 파티클 ──
+    if (showElectrons) {
+        electrons.forEach(e => {
+            e.progress += e.speed * (1 + Math.abs(mol.cloudCenter)*0.8);
+            if (e.progress > 1) e.progress = 0;
+            const t = e.progress;
+            const tgt = 0.5 + mol.cloudCenter*0.36;
+            let et;
+            if (t < tgt && tgt > 0) {
+                const r2 = t/tgt; et = tgt*(r2*r2);
+            } else {
+                const r2 = (t-tgt)/(1-tgt+0.001);
+                et = tgt + (1-tgt)*r2;
+            }
+            const bx = p0.sx + ddx*et;
+            const by = p0.sy + ddy*et;
+            const wv = Math.sin(t*Math.PI*3 + e.wave)*13;
+            const px = bx + nx*wv + e.offsetY*ny*0.35;
+            const py = by + ny*wv + e.offsetY*nx*0.35;
+            const al = Math.sin(t*Math.PI)*e.alpha;
+            const pg = ctx.createRadialGradient(px,py,0, px,py,e.size*1.9);
+            pg.addColorStop(0,   `rgba(185,230,255,${al})`);
+            pg.addColorStop(0.5, `rgba(80,160,255,${al*0.65})`);
+            pg.addColorStop(1,   'rgba(30,80,200,0)');
+            ctx.beginPath(); ctx.arc(px, py, e.size*1.9, 0, Math.PI*2);
+            ctx.fillStyle = pg; ctx.fill();
+        });
+    }
+
+    // ── 원자핵 3D 구 ──
+    [0, 1].forEach(idx => {
+        const p    = proj[idx];
+        const atom = mol.atoms[idx];
+        const r    = atom.radius * p.scale;
+
+        /* 바닥 그림자 */
+        ctx.save();
+        ctx.translate(p.sx+5, p.sy+6); ctx.scale(1, 0.38);
+        ctx.beginPath(); ctx.arc(0,0, r*1.05, 0, Math.PI*2);
+        ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.fill();
+        ctx.restore();
+
+        /* 구 본체 */
+        const sg = ctx.createRadialGradient(p.sx-r*0.32, p.sy-r*0.32, r*0.04, p.sx, p.sy, r);
+        if (idx===0) {
+            sg.addColorStop(0,    '#ffffff');
+            sg.addColorStop(0.3,  '#dddddd');
+            sg.addColorStop(0.65, '#999999');
+            sg.addColorStop(1,    '#2a2a2a');
+        } else {
+            const c = atom.color;
+            sg.addColorStop(0,    '#ffffff');
+            sg.addColorStop(0.22, c);
+            sg.addColorStop(0.62, c+'aa');
+            sg.addColorStop(1,    '#0a0a0a');
+        }
+        ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, Math.PI*2);
+        ctx.fillStyle=sg; ctx.fill();
+
+        /* 테두리 */
+        ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, Math.PI*2);
+        ctx.strokeStyle='rgba(255,255,255,0.32)'; ctx.lineWidth=1.5; ctx.stroke();
+
+        /* 반사 하이라이트 */
+        const hg = ctx.createRadialGradient(p.sx-r*0.26, p.sy-r*0.3, 0, p.sx-r*0.18, p.sy-r*0.2, r*0.44);
+        hg.addColorStop(0, 'rgba(255,255,255,0.52)');
+        hg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, Math.PI*2);
+        ctx.fillStyle=hg; ctx.fill();
+
+        /* 원자 기호 */
+        const fs = Math.max(13, r*0.72);
+        ctx.font=`bold ${fs}px Arial`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillStyle = idx===0 ? '#222' : '#001800';
+        ctx.fillText(atom.symbol, p.sx, p.sy);
+
+        /* EN 레이블 */
+        ctx.font=`bold ${Math.max(10,r*0.36)}px Malgun Gothic`;
+        ctx.fillStyle='rgba(255,255,255,0.88)';
+        ctx.fillText(`EN: ${atom.en}`, p.sx, p.sy+r+17);
+
+        /* 부분 전하 */
+        if (showCharge && mol.enDiff>0) {
+            const lbl     = idx===0 ? mol.partialCharge.left : mol.partialCharge.right;
+            const chColor = idx===0 ? '#88aaff' : '#ff5555';
+            const chFS    = Math.max(15, r*0.68);
+            const chY     = p.sy - r - 22;
+            const glg = ctx.createRadialGradient(p.sx,chY,0, p.sx,chY,chFS*1.3);
+            glg.addColorStop(0, chColor+'44'); glg.addColorStop(1,'transparent');
+            ctx.beginPath(); ctx.arc(p.sx,chY,chFS*1.3,0,Math.PI*2);
+            ctx.fillStyle=glg; ctx.fill();
+            ctx.font=`bold ${chFS}px Arial`;
+            ctx.fillStyle=chColor;
+            ctx.fillText(lbl, p.sx, chY);
+        }
+    });
+
+    // ── 전자쌍 이동 화살표 ──
+    if (mol.enDiff > 0) {
+        const arY = cy + 68;
+        const axS = p0.sx + ddx*0.14;
+        const axE = p0.sx + ddx*0.82;
+        const arGr = ctx.createLinearGradient(axS,arY, axE,arY);
+        arGr.addColorStop(0, 'rgba(255,200,50,0.2)');
+        arGr.addColorStop(1, 'rgba(255,110,50,1)');
+        ctx.beginPath(); ctx.moveTo(axS,arY); ctx.lineTo(axE-13,arY);
+        ctx.strokeStyle=arGr; ctx.lineWidth=3; ctx.lineCap='round'; ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(axE,arY); ctx.lineTo(axE-14,arY-8); ctx.lineTo(axE-14,arY+8);
+        ctx.closePath(); ctx.fillStyle='rgba(255,130,50,1)'; ctx.fill();
+        ctx.font='12px Malgun Gothic'; ctx.textAlign='center';
+        ctx.fillStyle='rgba(255,200,80,0.9)';
+        ctx.fillText('전자쌍 이동 방향', (axS+axE)/2, arY+20);
+    }
+
+    /* 좌상단 레이블 */
+    ctx.save();
+    ctx.textAlign='left';
+    ctx.font='bold 16px Malgun Gothic';
+    ctx.fillStyle='rgba(255,255,255,0.72)';
+    ctx.fillText(`${mol.name}  ·  ${mol.bondType}`, 18, 28);
+    ctx.font='12px Malgun Gothic';
+    ctx.fillStyle='rgba(255,255,255,0.42)';
+    ctx.fillText(`전기음성도 차이 : ${mol.enDiff.toFixed(1)}`, 18, 48);
+    ctx.restore();
+
+    requestAnimationFrame(render);
+}
+
+// ===================================================
+//  드래그
+// ===================================================
+canvas.addEventListener('mousedown',  e=>{ isDragging=true; lastMouseX=e.clientX; dragVelocity=0; });
+canvas.addEventListener('mousemove',  e=>{
+    if(!isDragging) return;
+    const d=(e.clientX-lastMouseX)*0.013;
+    angle+=d; dragVelocity=d; lastMouseX=e.clientX;
+});
+canvas.addEventListener('mouseup',    ()=>isDragging=false);
+canvas.addEventListener('mouseleave', ()=>isDragging=false);
+canvas.addEventListener('touchstart', e=>{ isDragging=true; lastMouseX=e.touches[0].clientX; dragVelocity=0; });
+canvas.addEventListener('touchmove',  e=>{
+    if(!isDragging) return;
+    const d=(e.touches[0].clientX-lastMouseX)*0.013;
+    angle+=d; dragVelocity=d; lastMouseX=e.touches[0].clientX;
+    e.preventDefault();
+},{ passive:false });
+canvas.addEventListener('touchend', ()=>isDragging=false);
+
+// ===================================================
+//  시작
+// ===================================================
+selectMolecule('H2');
+render();
+</script>
+</body>
+</html>
